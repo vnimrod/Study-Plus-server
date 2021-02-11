@@ -1,0 +1,4 @@
+{
+  "mongoURI": "mongodb+srv://nimrod1:3028nimi1630@cluster0.wapz5.mongodb.net/study-plus?retryWrites=true&w=majority",
+  "jwtSecret": "myjwtsecrettoken"
+}
