@@ -7,7 +7,7 @@ const router = express.Router();
 // @route         POST dashboard
 // @description   Create new course
 
-router.get('/:uid', auth, courseController.getCoursesByUserId);
+router.get('/', auth, courseController.getCoursesByUserId);
 
 // @route         POST dashboard
 // @description   Create new course
@@ -22,5 +22,10 @@ router.post(
 // @description   Delete course by cid
 
 router.delete('/:cid', auth, courseController.deleteCourse);
+
+// @route         Update course
+// @description   Update course by cid
+
+router.patch('/:cid', auth, courseController.updateCourse)
 
 module.exports = router;
