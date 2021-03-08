@@ -4,12 +4,12 @@ const auth = require('../../middleware/auth');
 const courseController = require('../../controllers/course');
 const router = express.Router();
 
-// @route         POST dashboard
-// @description   Create new course
+// @route         Get /dashboard
+// @description   Get courses by user id
 
 router.get('/', auth, courseController.getCoursesByUserId);
 
-// @route         POST dashboard
+// @route         POST /dashboard
 // @description   Create new course
 
 router.post(
@@ -18,12 +18,12 @@ router.post(
   courseController.createCourse
 );
 
-// @route         Delete course
+// @route         Delete /dashboard/:cid (course id)
 // @description   Delete course by cid
 
 router.delete('/:cid', auth, courseController.deleteCourse);
 
-// @route         Update course
+// @route         Update /dashboard/:cid (course id)
 // @description   Update course by cid
 
 router.patch('/:cid', auth, courseController.updateCourse)

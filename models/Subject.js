@@ -3,9 +3,9 @@ const mongoose = require('mongoose');
 const SubjectSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'course',
+    ref: 'user',
   },
-  subject: {
+  subjectName: {
     type: String,
   },
   files: [
