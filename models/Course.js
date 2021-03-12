@@ -16,6 +16,20 @@ const CourseSchema = new mongoose.Schema({
     type: String,
     default: 'white',
   },
+  subjects: [
+    {
+      subjectName: {
+        type: String,
+      },
+      files: [
+        {
+          data: {
+            type: Buffer,
+          },
+        },
+      ],
+    },
+  ],
 });
 
 const Course = mongoose.model('course', CourseSchema);

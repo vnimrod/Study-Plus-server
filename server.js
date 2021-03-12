@@ -12,7 +12,7 @@ app.use(express.json());
 
 app.use('/user', user);
 app.use('/dashboard', course);
-app.use('/dashboard/course/subjects', subject);
+// app.use('/dashboard/course/subjects', subject);
 
 connectDB();
 

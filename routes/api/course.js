@@ -26,6 +26,25 @@ router.delete('/:cid', auth, courseController.deleteCourse);
 // @route         Update /dashboard/:cid (course id)
 // @description   Update course by cid
 
-router.patch('/:cid', auth, courseController.updateCourse)
+router.patch('/:cid', auth, courseController.updateCourse);
+
+// @route         GET dashboard/course/:cid/subject
+// @description   Get course by cid
+
+router.get('/course/:cid/subjects', auth, courseController.getCourse);
+
+// @route         POST dashboard/course/subjects
+// @description   Create new subject
+
+router.post('/course/:cid/subjects', auth, courseController.createSubject);
+
+// @route         DELETE dashboard/course/subjects/:sid
+// @description   Delete subject
+
+router.delete(
+  '/course/subjects/:cid/:sid',
+  auth,
+  courseController.deleteSubject
+); //sid: subject id
 
 module.exports = router;

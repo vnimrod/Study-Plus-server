@@ -1,21 +1,21 @@
-const express = require('express');
-const auth = require('../../middleware/auth');
-const subjectController = require('../../controllers/subject');
-const router = express.Router();
+// const express = require('express');
+// const auth = require('../../middleware/auth');
+// const subjectController = require('../../controllers/subject');
+// const router = express.Router();
 
-// @route         GET dashboard/course/subjects
-// @description   Get user subjects
+// // @route         GET dashboard/course/subjects
+// // @description   Get user subjects
 
-router.get('/', auth, subjectController.getSubjects)
+// router.get('/', auth, subjectController.getSubjects)
 
-// @route         POST dashboard/course/subjects 
-// @description   Create new subject
+// // @route         POST dashboard/course/subjects 
+// // @description   Create new subject
 
-router.post('/', auth, subjectController.createSubject);
+// router.post('/', auth, subjectController.createSubject);
 
-// @route         DELETE dashboard/course/subjects/:sid 
-// @description   Delete subject
+// // @route         DELETE dashboard/course/subjects/:sid 
+// // @description   Delete subject
 
-router.delete('/:sid', auth, subjectController.deleteSubject); //sid: subject id
+// router.delete('/:sid', auth, subjectController.deleteSubject); //sid: subject id
 
-module.exports = router;
+// module.exports = router;
