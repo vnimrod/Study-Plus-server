@@ -3,6 +3,7 @@ const { check } = require('express-validator');
 const auth = require('../../middleware/auth');
 const courseController = require('../../controllers/course');
 const router = express.Router();
+const multer = require('multer');
 
 // @route         Get /dashboard
 // @description   Get courses by user id
@@ -47,4 +48,16 @@ router.delete(
   courseController.deleteSubject
 ); //sid: subject id
 
+const upload = multer();
+router.post(
+  '/upload',
+  upload.single('file'),
+  courseController.fileUpload,
+  (error, req, res, next) => {
+    res.status(400).send({ error: error.message });
+  }
+);
+
+router.get('/upload', courseController.getFile);
 module.exports = router;
+

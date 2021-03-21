@@ -5,14 +5,12 @@ const connectDB = require('./config/db');
 
 const user = require('./routes/api/user');
 const course = require('./routes/api/course');
-const subject = require('./routes/api/subject')
 
 app.use(cors());
 app.use(express.json());
 
 app.use('/user', user);
 app.use('/dashboard', course);
-// app.use('/dashboard/course/subjects', subject);
 
 connectDB();
 

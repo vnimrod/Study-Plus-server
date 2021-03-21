@@ -23,8 +23,11 @@ const CourseSchema = new mongoose.Schema({
       },
       files: [
         {
-          data: {
-            type: Buffer,
+          fileId: {
+            type: String,
+          },
+          fileName: {
+            type: String,
           },
         },
       ],
