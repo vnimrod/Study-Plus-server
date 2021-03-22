@@ -61,14 +61,12 @@ const createCourse = async (req, res, next) => {
     await course.save();
     res.json(course);
 
-    folder(course.id, req.user.id, user.folder)
+    folder(course.id, req.user.id, user.folder);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
   }
 };
-
-
 
 const deleteCourse = async (req, res, next) => {
   try {
@@ -193,36 +191,52 @@ const authorize = (
   });
 };
 
-// Create inside user folder, new course folder 
-const createGoogleDriveCourseFolder = (auth, file, req_body, googleApiFileResponse) => {
+// Create inside user folder, new course folder
+const createGoogleDriveCourseFolder = (
+  auth,
+  file,
+  req_body,
+  googleApiFileResponse
+) => {
   const drive = google.drive({ version: 'v3', auth });
-  
+
   var folderId = req_body.folderId;
   var fileMetadata = {
     name: req_body.cid,
     mimeType: 'application/vnd.google-apps.folder',
-    parents: [folderId]
+    parents: [folderId],
   };
 
-  drive.files.create({
-    resource: fileMetadata,
-    fields: 'id'
-  }, function (err, file) {
-    if (err) {
-      // Handle error
-      console.error(err);
-    } else {
-      console.log('File Id: ', file.data.id);
+  drive.files.create(
+    {
+      resource: fileMetadata,
+      fields: 'id',
+    },
+    async function (err, file) {
+      if (err) {
+        // Handle error
+        console.error(err);
+      } else {
+        let course = await Course.findById(req_body.cid);
+        course['folder'] = file.data.id;
+        await course.save();
+      }
     }
-  });
+  );
 };
 
 const folder = (cid, uid, folderId) => {
   fs.readFile('./credentials.json', (err, content) => {
     if (err) return console.log('Error loading client secret file:', err);
-    authorize(JSON.parse(content), null, {cid, uid, folderId}, null, createGoogleDriveCourseFolder);
+    authorize(
+      JSON.parse(content),
+      null,
+      { cid, uid, folderId },
+      null,
+      createGoogleDriveCourseFolder
+    );
   });
-}
+};
 
 // Convert buffer to stream
 const createReadableStream = (buffer) => {
@@ -233,50 +247,56 @@ const createReadableStream = (buffer) => {
   return readable;
 };
 
-const uploadFile = (auth, file, req_body, googleApiFileResponse) => {
+const uploadFile = async (auth, file, req_body, googleApiFileResponse) => {
   const fileStream = createReadableStream(file.buffer);
   const drive = google.drive({ version: 'v3', auth });
+  try {
+    const course = await Course.findById(req_body.cid);
+    
+    var fileMetadata = {
+      name: file.originalname,
+      parents: [course.folder],
+    };
+    var media = {
+      mimeType: file.mimetype,
+      body: fileStream,
+    };
+    drive.files.create(
+      {
+        resource: fileMetadata,
+        media: media,
+        fields: 'id',
+      },
+      async function (error, uploadResponse) {
+        if (error) {
+          // Handle error
+          googleApiFileResponse
+            .status(500)
+            .send('Erorr: Unable to upload folder');
+        } else {
+          try {
+            // const course = await Course.findById(req_body.cid);
 
-  var fileMetadata = {
-    name: file.originalname,
-  };
-  var media = {
-    mimeType: file.mimetype,
-    body: fileStream,
-  };
-  drive.files.create(
-    {
-      resource: fileMetadata,
-      media: media,
-      fields: 'id',
-    },
-    async function (error, uploadResponse) {
-      if (error) {
-        // Handle error
-        googleApiFileResponse.status(500).send('Erorr: Unable to upload folder');
-      } else {
-        try {
-          const course = await Course.findById(req_body.cid);
-          
-          const newFile = {
-            fileId: uploadResponse.data.id,
-            fileName: googleApiFileResponse.req.file.originalname,
-          };
-          // subject.files.unshift(newFile)
-          course.subjects.map((subject) => {
-            subject.id === req_body.sid
-              ? subject.files.unshift(newFile)
-              : subject;
-          });
+            const newFile = {
+              fileId: uploadResponse.data.id,
+              fileName: googleApiFileResponse.req.file.originalname,
+            };
+            // subject.files.unshift(newFile)
+            course.subjects.map((subject) => {
+              subject.id === req_body.sid
+                ? subject.files.unshift(newFile)
+                : subject;
+            });
 
-          await course.save();
-          googleApiFileResponse.json(course);
-        } catch (err) {
-          res.status(500).send('Server Error');
+            await course.save();
+            googleApiFileResponse.json(course);
+          } catch (err) {
+            res.status(500).send('Server Error');
+          }
         }
       }
-    }
-  );
+    );
+  } catch (err) {}
 };
 
 const upload = (req, res) => {
@@ -285,7 +305,6 @@ const upload = (req, res) => {
     if (err) return console.log('Error loading client secret file:', err);
     // Authorize a client with credentials, then call the Google Drive API.
     // authorize(JSON.parse(content), listFiles);
-    // console.log(content)
     // authorize(JSON.parse(content), getFile);
     authorize(
       JSON.parse(content),

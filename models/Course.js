@@ -16,6 +16,9 @@ const CourseSchema = new mongoose.Schema({
     type: String,
     default: 'white',
   },
+  folder:{
+    type:String
+  },
   subjects: [
     {
       subjectName: {
