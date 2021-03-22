@@ -19,6 +19,9 @@ const UserSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    folder:{
+      type: String
+    },
     tokens: [
       {
         token: {

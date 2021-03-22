@@ -4,6 +4,7 @@ const { google } = require('googleapis');
 const { Readable } = require('stream');
 
 const Course = require('../models/Course');
+const User = require('../models/User');
 
 const getCourse = async (req, res) => {
   try {
@@ -49,7 +50,7 @@ const createCourse = async (req, res, next) => {
 
   try {
     const { courseName, courseInfo, color } = req.body;
-
+    const user = await User.findById(req.user.id).select('-password');
     const course = new Course({
       user: req.user.id,
       courseName,
@@ -59,11 +60,15 @@ const createCourse = async (req, res, next) => {
 
     await course.save();
     res.json(course);
+
+    folder(course.id, req.user.id, user.folder)
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
   }
 };
+
+
 
 const deleteCourse = async (req, res, next) => {
   try {
@@ -113,20 +118,6 @@ const updateCourse = async (req, res, next) => {
     res.status(500).send('Server Error');
   }
 };
-
-// const getSubjects = async (req, res) => {
-//   try {
-//     const subjects = await Subject.find({user: req.user.id}).populate('user',['name']);
-//     if(!subjects){
-//       return res.status(400).json ({ msg: 'Subjects not found'});
-//     }
-
-//     res.json(subjects);
-//   } catch (err) {
-//     console.error(err.message);
-//     res.status(500).send('Server error');
-//   }
-// }
 
 const createSubject = async (req, res) => {
   try {
@@ -178,7 +169,14 @@ const deleteSubject = async (req, res) => {
 
 // Handle Files
 
-const authorize = (credentials, file, googleApiFileResponse, callback) => {
+// Authorize google drive api credentials
+const authorize = (
+  credentials,
+  file,
+  req_body,
+  googleApiFileResponse,
+  callback
+) => {
   const { client_secret, client_id, redirect_uris } = credentials.installed;
   const oAuth2Client = new google.auth.OAuth2(
     client_id,
@@ -191,25 +189,52 @@ const authorize = (credentials, file, googleApiFileResponse, callback) => {
     // if (err) return getAccessToken(oAuth2Client, callback);
     oAuth2Client.setCredentials(JSON.parse(token));
     // callback(oAuth2Client);//list files and upload file
-    callback(oAuth2Client, file, googleApiFileResponse); //get file static id from my drive the folder name invoices
+    callback(oAuth2Client, file, req_body, googleApiFileResponse); //get file static id from my drive the folder name invoices
   });
 };
 
-// convert buffer to stream
+// Create inside user folder, new course folder 
+const createGoogleDriveCourseFolder = (auth, file, req_body, googleApiFileResponse) => {
+  const drive = google.drive({ version: 'v3', auth });
+  
+  var folderId = req_body.folderId;
+  var fileMetadata = {
+    name: req_body.cid,
+    mimeType: 'application/vnd.google-apps.folder',
+    parents: [folderId]
+  };
+
+  drive.files.create({
+    resource: fileMetadata,
+    fields: 'id'
+  }, function (err, file) {
+    if (err) {
+      // Handle error
+      console.error(err);
+    } else {
+      console.log('File Id: ', file.data.id);
+    }
+  });
+};
+
+const folder = (cid, uid, folderId) => {
+  fs.readFile('./credentials.json', (err, content) => {
+    if (err) return console.log('Error loading client secret file:', err);
+    authorize(JSON.parse(content), null, {cid, uid, folderId}, null, createGoogleDriveCourseFolder);
+  });
+}
+
+// Convert buffer to stream
 const createReadableStream = (buffer) => {
   const readable = new Readable();
-  readable._read = () => {}; // _read is required but you can noop it
+  readable._read = () => {};
   readable.push(buffer);
   readable.push(null);
-
   return readable;
 };
 
-const uploadFile = (auth, file, googleApiFileResponse) => {
-
-  
-  const fileStream = createReadableStream(file.buffer)
-
+const uploadFile = (auth, file, req_body, googleApiFileResponse) => {
+  const fileStream = createReadableStream(file.buffer);
   const drive = google.drive({ version: 'v3', auth });
 
   var fileMetadata = {
@@ -223,43 +248,53 @@ const uploadFile = (auth, file, googleApiFileResponse) => {
     {
       resource: fileMetadata,
       media: media,
-      fields: 'id'
+      fields: 'id',
     },
-    function (err, uploadResponse) {
-      if (err) {
+    async function (error, uploadResponse) {
+      if (error) {
         // Handle error
-        console.log(err);
+        googleApiFileResponse.status(500).send('Erorr: Unable to upload folder');
       } else {
-        googleApiFileResponse.json(uploadResponse.data)
+        try {
+          const course = await Course.findById(req_body.cid);
+          
+          const newFile = {
+            fileId: uploadResponse.data.id,
+            fileName: googleApiFileResponse.req.file.originalname,
+          };
+          // subject.files.unshift(newFile)
+          course.subjects.map((subject) => {
+            subject.id === req_body.sid
+              ? subject.files.unshift(newFile)
+              : subject;
+          });
+
+          await course.save();
+          googleApiFileResponse.json(course);
+        } catch (err) {
+          res.status(500).send('Server Error');
+        }
       }
     }
   );
-}
+};
 
-const fileUpload = (req, res) => {
-
+const upload = (req, res) => {
   const googleApiFileResponse = res;
-
-  try {
-    fs.readFile('./credentials.json', (err, content) => {
-      if (err) return console.log('Error loading client secret file:', err);
-      // Authorize a client with credentials, then call the Google Drive API.
-      // authorize(JSON.parse(content), listFiles);
-      // console.log(content)
-      // authorize(JSON.parse(content), getFile);
-      authorize(JSON.parse(content), req.file, googleApiFileResponse, uploadFile);
-    });
-    
-    // const course = await Course.findById('604cd66a611ea72ef49112ba');
-    // const buffer = req.file.buffer;
-    // course.subjects[0].files.push({ data: buffer });
-    // // console.log(buffer.toString('hex').match(/../g).join(' '));
-    // await course.save();
-    // res.json(req.file);
-
-  } catch (err) {
-    res.status(500).send({ msg: err.message });
-  }
+  fs.readFile('./credentials.json', (err, content) => {
+    if (err) return console.log('Error loading client secret file:', err);
+    // Authorize a client with credentials, then call the Google Drive API.
+    // authorize(JSON.parse(content), listFiles);
+    // console.log(content)
+    // authorize(JSON.parse(content), getFile);
+    authorize(
+      JSON.parse(content),
+      req.file,
+      req.body,
+      googleApiFileResponse,
+      uploadFile
+    );
+  });
 };
 
 const getFile = async (req, res) => {
@@ -277,7 +312,6 @@ const getFile = async (req, res) => {
   }
 };
 
-
 // DELETE FILE   drive.files.delete({fileId:'15jvWha2Ya5pV1i3p-Xz5Kl_XEV1li2C1'})
 
 module.exports = {
@@ -288,6 +322,6 @@ module.exports = {
   updateCourse,
   createSubject,
   deleteSubject,
-  fileUpload,
+  upload,
   getFile,
 };

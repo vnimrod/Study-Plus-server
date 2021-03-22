@@ -51,8 +51,9 @@ router.delete(
 const upload = multer();
 router.post(
   '/upload',
+  auth,
   upload.single('file'),
-  courseController.fileUpload,
+  courseController.upload,
   (error, req, res, next) => {
     res.status(400).send({ error: error.message });
   }
