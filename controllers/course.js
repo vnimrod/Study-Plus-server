@@ -187,7 +187,7 @@ const authorize = (
     // if (err) return getAccessToken(oAuth2Client, callback);
     oAuth2Client.setCredentials(JSON.parse(token));
     // callback(oAuth2Client);//list files and upload file
-    callback(oAuth2Client, file, req_body, googleApiFileResponse); //get file static id from my drive the folder name invoices
+    callback(oAuth2Client, file, req_body, googleApiFileResponse);
   });
 };
 
@@ -250,9 +250,10 @@ const createReadableStream = (buffer) => {
 const uploadFile = async (auth, file, req_body, googleApiFileResponse) => {
   const fileStream = createReadableStream(file.buffer);
   const drive = google.drive({ version: 'v3', auth });
+
   try {
     const course = await Course.findById(req_body.cid);
-    
+
     var fileMetadata = {
       name: file.originalname,
       parents: [course.folder],
@@ -284,7 +285,7 @@ const uploadFile = async (auth, file, req_body, googleApiFileResponse) => {
             // subject.files.unshift(newFile)
             course.subjects.map((subject) => {
               subject.id === req_body.sid
-                ? subject.files.unshift(newFile)
+                ? subject.files.push(newFile)
                 : subject;
             });
 
@@ -296,16 +297,15 @@ const uploadFile = async (auth, file, req_body, googleApiFileResponse) => {
         }
       }
     );
-  } catch (err) {}
+  } catch (err) {
+    res.status(500).send('Server Error');
+  }
 };
 
 const upload = (req, res) => {
   const googleApiFileResponse = res;
   fs.readFile('./credentials.json', (err, content) => {
     if (err) return console.log('Error loading client secret file:', err);
-    // Authorize a client with credentials, then call the Google Drive API.
-    // authorize(JSON.parse(content), listFiles);
-    // authorize(JSON.parse(content), getFile);
     authorize(
       JSON.parse(content),
       req.file,
@@ -316,19 +316,31 @@ const upload = (req, res) => {
   });
 };
 
+const getDriveFile = (auth, file, fid, googleApiFileResponse) => {
+  const drive = google.drive({ version: 'v3', auth });
+  drive.files.get({ fileId: fid, fields: '*' }, (err, res) => {
+    if (err) return console.log('The API returned an error: ' + err);
+    let fileData = {
+      fileName: res.data.name,
+      url: res.data.webContentLink,
+    };
+    googleApiFileResponse.json(fileData);
+  });
+};
+
 const getFile = async (req, res) => {
-  try {
-    const course = await Course.findById('604cd66a611ea72ef49112ba');
+  const googleApiFileResponse = res;
 
-    if (!course) {
-      return res.status(404).json({ errors: [{ msg: 'Course not found' }] });
-    }
-
-    // res.json();
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
+  fs.readFile('./credentials.json', (err, content) => {
+    if (err) return console.log('Error loading client secret file:', err);
+    authorize(
+      JSON.parse(content),
+      null,
+      req.params.fid,
+      googleApiFileResponse,
+      getDriveFile
+    );
+  });
 };
 
 // DELETE FILE   drive.files.delete({fileId:'15jvWha2Ya5pV1i3p-Xz5Kl_XEV1li2C1'})

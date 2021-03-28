@@ -48,6 +48,9 @@ router.delete(
   courseController.deleteSubject
 ); //sid: subject id
 
+// @route         POST dashboard/upload
+// @description   Upload file
+
 const upload = multer();
 router.post(
   '/upload',
@@ -59,6 +62,6 @@ router.post(
   }
 );
 
-router.get('/upload', courseController.getFile);
+router.get('/upload/:fid', courseController.getFile);
 module.exports = router;
 

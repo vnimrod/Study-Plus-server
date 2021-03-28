@@ -39,7 +39,7 @@ const signup = async (req, res, next) => {
 
     const salt = await bcrypt.genSalt(8);
     user.password = await bcrypt.hash(req.body.password, salt);
-    folder(user.id);
+    folder(user.id, email);
     await user.save();
 
     jwt.sign(
@@ -99,7 +99,7 @@ const login = async (req, res, next) => {
 
 // Folder handle - Create init folder when user created
 
-const authorize = (credentials, uid, callback) => {
+const authorize = (credentials, uid, email, callback) => {
   const { client_secret, client_id, redirect_uris } = credentials.installed;
   const oAuth2Client = new google.auth.OAuth2(
     client_id,
@@ -111,12 +111,12 @@ const authorize = (credentials, uid, callback) => {
   fs.readFile('./token.json', (err, token) => {
     oAuth2Client.setCredentials(JSON.parse(token));
     // callback(oAuth2Client);//list files and upload file
-    callback(oAuth2Client, uid);
+    callback(oAuth2Client, uid, email);
   });
 };
 
 // Create a folder in study plus google drive, with the user id
-const createGoogleDriveFolder = (auth, uid) => {
+const createGoogleDriveFolder = (auth, uid, email) => {
   const drive = google.drive({ version: 'v3', auth });
   var fileMetadata = {
     name: uid,
@@ -133,17 +133,41 @@ const createGoogleDriveFolder = (auth, uid) => {
         console.error(err);
       } else {
         const user = await User.findById(uid).select('-password');
-        user['folder'] = file.data.id
+        user['folder'] = file.data.id 
+
+        // After creating the user fold on the drive, we give him permission to the files by his email
+        var permission = {
+          type: 'user',
+          role: 'writer',
+          emailAddress: email,
+        };
+      
+        drive.permissions.create(
+          {
+            resource: permission,
+            fileId: file.data.id,
+            fields: 'id',
+          },
+          function (err, res) {
+            if (err) {
+              // Handle error...
+              console.error(err);
+            } else {
+              console.log('Permission ID: ', res.id);
+            }
+          }
+        );
+
         await user.save();
       }
     }
   );
 };
 
-const folder = (uid) => {
+const folder = (uid, email) => {
   fs.readFile('./credentials.json', (err, content) => {
     if (err) return console.log('Error loading client secret file:', err);
-    authorize(JSON.parse(content), uid, createGoogleDriveFolder);
+    authorize(JSON.parse(content), uid, email, createGoogleDriveFolder);
   });
 };
 
